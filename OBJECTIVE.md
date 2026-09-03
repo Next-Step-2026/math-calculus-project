@@ -1,269 +1,230 @@
-# Guia Técnico e de Coordenação — Workshop C++ e Python
+# OBJECTIVE.md — Guia Técnico e Coordenação (Dinâmica de 2h)
 
-> **Escopo:** refatoração, integração entre C++ e Python e qualidade de código  
-> **Duração:** 120 minutos  
-> **Público:** equipes com conhecimentos básicos ou intermediários de C++ e Python
+> **Escopo:** Workshop Prático de Refatoração, Integração FFI (C++ ↔ Python) e Qualidade de Código  
+> **Duração:** 120 minutos (2 horas)  
+> **Público:** Equipes de Desenvolvimento C++ (Núcleo Numérico) e Python (API, Validação & Testes)
 
-## 1. Objetivo
+---
 
-Conduzir uma atividade prática na qual duas equipes evoluem uma biblioteca de cálculo numérico, preservando seu comportamento e melhorando clareza, modularidade e integração.
+## 1. Visão Geral e Objetivo da Dinâmica
 
-O núcleo numérico fica sob responsabilidade do time C++. A interface de uso, validação e testes fica sob responsabilidade do time Python.
+O propósito deste laboratório prático é guiar duas equipes multidisciplinares (C++ e Python) na construção e refatoração colaborativa de uma biblioteca modular de cálculo numérico.
 
-A atividade deve desenvolver quatro competências:
+A dinâmica é estritamente delimitada a **120 minutos**, focando em boas práticas de engenharia de software, design patterns, erradicação de *code smells* e verificação contínua da qualidade, concentrando-se em três temas matemáticos essenciais:
 
-- identificar *code smells* e dívida técnica;
-- refatorar sem alterar o comportamento esperado;
-- integrar C++ e Python por meio de um módulo nativo;
-- usar análise estática, testes e métricas para orientar decisões.
-
-## 2. Escopo funcional
-
-O projeto cobre três domínios matemáticos:
-
-1. convergência e divergência de séries numéricas;
-2. integração numérica de funções;
-3. aproximação por polinômios de Taylor.
-
-Cada domínio deve possuir contrato claro, responsabilidade única e testes independentes.
-
-Detalhes algorítmicos, assinaturas definitivas e escolhas de otimização devem ser acordados pelos times durante a definição dos contratos.
-
-## 3. Arquitetura de referência
-
-A solução deve seguir uma arquitetura em camadas:
+1. **Convergência e Divergência de Séries Numéricas**
+2. **Integrador Numérico de Funções**
+3. **Aproximação por Polinômio de Taylor**
 
 ```mermaid
 flowchart LR
-    A[Cliente Python] --> B[Fachada Python]
-    B --> C[Binding C++/Python]
-    C --> D[Núcleo Numérico C++]
-    D --> C
-    C --> B
+    subgraph Camada_Python [Camada de Aplicação - Time Python]
+        A[Cliente / Testes] --> B[Fachada: mathlab.api]
+        B --> C{Validação Defensiva / Guard Clauses}
+        C -->|Tipos Validados| D[Interface do Módulo Nativo]
+    end
+
+    subgraph Camada_FFI [Ponte FFI - pybind11]
+        D -->|pybind11 _mathcore| E[Adaptador de Tipos & Tradução de Exceções]
+    end
+
+    subgraph Camada_Cpp [Núcleo Numérico - Time C++]
+        E --> F[Estratégia: Séries]
+        E --> G[Estratégia: Quadratura]
+        E --> H[Estratégia: Taylor]
+        F --> I[Rotinas Puras de Cálculo Numérico]
+        G --> I
+        H --> I
+    end
+
+    I -->|Retorno Numérico / Status| E
+    E -->|Resultado Float / Exceção| B
+    B --> A
 ```
 
-### Camada Python
+---
 
-Responsável pela API pública, validação de entradas, tradução da experiência de uso e testes comportamentais.
+## 2. Registro de Decisão Arquitetural (ADR-001: Integração FFI vs. IPC)
 
-### Camada de integração
+- **Contexto:** Necessidade de integrar um núcleo computacional de alta performance em C++ com uma camada expressiva de validação e testes em Python durante uma sessão de 2 horas.
+- **Decisão:** Adoção de **FFI in-process** via **pybind11** com backend de compilação **scikit-build-core** e **CMake**.
+- **Justificativa:**
+  - *Desempenho:* Chamadas no mesmo espaço de endereçamento de memória, sem latência de sockets de rede ou serialização de dados.
+  - *Simplicidade Didática:* Geração de um módulo compartilhado único (`_mathcore`) consumível de forma direta pelo Python.
+  - *Alternativas Rejeitadas:* Protocolos IPC baseados em rede (gRPC ou ZeroMQ) foram descartados pela sobrecarga de definição de esquemas de mensagens (`.proto`), compilação de stubs e gerenciamento de processos paralelos, inviáveis para a restrição temporal de 120 minutos. Wrappers manuais em `ctypes` foram descartados pela ausência de verificação de tipos em tempo de compilação e suporte deficiente a exceções de C++.
 
-Responsável pelo contrato entre as linguagens, conversão de tipos e propagação consistente de erros.
+---
 
-### Núcleo C++
+## 3. Contrato de Layout de Memória e Gestão de Recursos
 
-Responsável pelos cálculos numéricos, desempenho, precisão e regras matemáticas centrais.
+Para assegurar estabilidade e desempenho sem overheads desnecessários:
 
-## 4. Decisão de integração
+- **Alinhamento e Tipos Primitivos:** Todos os cálculos numéricos utilizam precisão dupla IEEE 754 (`double` em C++ correspondendo a `float64` no NumPy e `float` nativo do Python).
+- **Semântica de Passagem:**
+  - Valores escalares (pontos $x, x_0$, limites $a, b$, tolerância $\epsilon$, ordem $n$) são transferidos estritamente **por valor**.
+  - Estruturas de dados ou coleções de coeficientes devem ser transmitidas como sequências contíguas em memória (*C-contiguous memory buffer*), acessadas no C++ via referências constantes (`const&`) para garantir ausência de cópias redundantes.
+- **Gerenciamento RAII:** Alocações dinâmicas de memória são terminantemente proibidas no fluxo principal das funções de cálculo. O ciclo de vida de qualquer recurso nativo é delimitado por escopo determinístico (RAII).
 
-A integração principal deve usar FFI *in-process* com `pybind11`.
+---
 
-Essa escolha reduz infraestrutura, evita comunicação por rede e mantém o foco da atividade em refatoração, contratos e qualidade.
+## 4. Padrões de Projeto e Diretrizes Técnicas
 
-`gRPC`, `ZeroMQ`, `ctypes`, `cppyy` e `nanobind` podem ser citados como alternativas, mas não fazem parte da implementação prevista.
+As equipes devem estruturar a solução aplicando os seguintes padrões arquiteturais:
 
-O build integrado deve usar `CMake` e `scikit-build-core`, produzindo um pacote Python capaz de carregar o módulo nativo.
+- **Facade Pattern (Fachada):** O pacote Python (`mathlab.api`) atua como fachada única de alto nível, ocultando do consumidor final a existência do módulo nativo compilado (`_mathcore`).
+- **Strategy Pattern (Estratégia):** Desacoplar os algoritmos numéricos de suas interfaces de chamada, permitindo selecionar dinamicamente métodos matemáticos (por exemplo, método dos trapézios versus regra de Simpson para integração) sem modificar a camada consumidora.
+- **Adapter Pattern (Adaptador):** A camada de bindings (`bindings.cpp`) atua como adaptador estrutural, convertendo tipos e contratos de chamada entre o ambiente interpretado Python e as sub-rotinas compiladas C++.
+- **Guard Clauses & Early Return:** Na camada Python, validações de domínio, limites e tipos numéricos devem interromper o fluxo imediatamente no início das funções, eliminando condicionais aninhadas (*nested ifs*).
+- **Exception Translation (Tradução Estrita de Exceções):** **Proibido o uso de falhas silenciosas** (retorno de valores sentinela como 0.0, -1 ou NaN para sinalizar erro). Cenários matematicamente degenerados ou limites inválidos devem disparar exceções explícitas de C++ (`std::invalid_argument`, `std::runtime_error`), traduzidas automaticamente pela camada de binding para `ValueError` ou `RuntimeError` no Python.
+- **Funções Puras:** As rotinas de cálculo numérico no C++ devem ser idempotentes, dependendo exclusivamente dos argumentos fornecidos, sem estado global ou efeitos colaterais.
 
-## 5. Princípios e padrões de projeto
+---
 
-### Fachada
+## 5. Matriz de Ferramentas e Responsabilidades Técnicas
 
-A API Python deve ser o único ponto público de acesso. Consumidores não devem depender diretamente dos detalhes do módulo nativo.
+| Ferramenta / Tecnologia | Finalidade Técnica no Workshop | Time Responsável |
+| :--- | :--- | :--- |
+| **C++17** | Implementação algorítmica de precisão e eficiência matemática | Time C++ |
+| **pybind11** | Geração do módulo de extensão nativa (`_mathcore`) | Time C++ / Python |
+| **CMake & scikit-build-core** | Automação de compilação integrada ao packaging Python | Ambos |
+| **Python 3.10+ & NumPy** | Camada de fachada, sanitização de dados e consumo de alto nível | Time Python |
+| **pytest** | Automação da suíte de testes de regressão e validação comportamental | Time Python |
+| **clang-tidy & clangd** | Análise estática, modernização e prevenção de code smells em C++ | Time C++ |
+| **Ruff** | Linter e formatador de alta performance para Python (complexidade C901) | Time Python |
+| **CodeScene** | Monitoramento em tempo real do índice de *Code Health* e complexidade | Ambos |
+| **Live Share / p2p-live-share** | Ambiente colaborativo síncrono para pair programming | Ambos |
 
-### Adaptador
+---
 
-A camada de binding deve adaptar tipos e erros entre Python e C++, sem concentrar regras matemáticas ou regras de apresentação.
+## 6. Fronteiras do Projeto e Estrutura de Diretórios
 
-### Estratégia
-
-Algoritmos intercambiáveis devem compartilhar contratos equivalentes. A escolha de um método não deve exigir alteração na camada consumidora.
-
-### Funções puras
-
-Rotinas numéricas devem depender somente das entradas recebidas. Estado global e efeitos colaterais devem ser evitados.
-
-### Guard clauses
-
-Validações devem falhar cedo e com mensagens claras. Condicionais profundas devem ser substituídas por verificações diretas quando isso melhorar a leitura.
-
-### RAII
-
-Recursos nativos devem possuir ciclo de vida determinístico. Gerenciamento manual e ambíguo de recursos deve ser evitado.
-
-### Separação de responsabilidades
-
-Validação de uso pertence à fachada Python. Regras matemáticas e cálculo pertencem ao núcleo C++. Conversão entre linguagens pertence ao binding.
-
-## 6. Contratos entre os times
-
-Antes da implementação, os times devem acordar:
-
-- nomes e objetivos das operações públicas;
-- tipos de entrada e saída;
-- unidades, limites e tolerâncias;
-- representação de sucesso, divergência e erro;
-- exceções expostas ao usuário Python;
-- critérios numéricos usados nos testes;
-- responsabilidade por cada validação.
-
-Mudanças nesses contratos exigem alinhamento entre os dois times antes da integração.
-
-Falhas silenciosas e valores sentinela não devem representar erros. Erros devem ser explícitos, documentados e testáveis.
-
-## 7. Responsabilidades
-
-### Time C++
-
-- definir contratos do núcleo numérico com o time Python;
-- organizar os módulos matemáticos;
-- garantir precisão, segurança e eficiência;
-- implementar e manter os bindings;
-- corrigir alertas relevantes de `clang-tidy`;
-- documentar premissas e limites matemáticos.
-
-### Time Python
-
-- definir a API pública com o time C++;
-- validar entradas na fronteira da aplicação;
-- manter a fachada desacoplada do binding;
-- criar testes nominais, de borda e de erro;
-- corrigir alertas relevantes do `Ruff`;
-- documentar comportamento visível ao consumidor.
-
-### Responsabilidades compartilhadas
-
-- aprovar contratos de integração;
-- manter o build reproduzível;
-- executar testes após cada refatoração;
-- revisar mudanças que cruzem a fronteira C++/Python;
-- acompanhar métricas sem substituir revisão humana por pontuação.
-
-### Professor ou host
-
-- preparar e validar o ambiente antes da sessão;
-- coordenar acessos e turnos de edição;
-- mediar decisões de contrato;
-- conduzir checkpoints;
-- garantir que a atividade permaneça dentro do escopo.
-
-## 8. Ferramentas
-
-| Ferramenta | Uso | Responsável principal |
-|---|---|---|
-| C++17 | Núcleo numérico | Time C++ |
-| Python 3.10+ | Fachada e validação | Time Python |
-| pybind11 | Integração nativa | Ambos |
-| CMake | Build do código C++ | Time C++ |
-| scikit-build-core | Integração do build com o pacote Python | Ambos |
-| pytest | Testes comportamentais e de regressão | Time Python |
-| clangd | Diagnóstico C++ no editor | Time C++ |
-| clang-tidy | Análise estática C++ | Time C++ |
-| Ruff | Lint e formatação Python | Time Python |
-| CodeScene | Apoio à análise de manutenibilidade | Ambos |
-| VS Code Live Share | Colaboração síncrona | Host e equipes |
-| Git | Histórico, isolamento e revisão das mudanças | Ambos |
-
-Ferramentas devem apoiar decisões técnicas. Correções automáticas só devem ser aceitas quando preservarem contratos e comportamento.
-
-## 9. Estrutura e fronteiras do repositório
+A estrutura física do repositório delimita claramente o escopo de atuação de cada time:
 
 ```text
 math-calculus-project/
-├── CMakeLists.txt
-├── pyproject.toml
-├── cpp/
+├── CMakeLists.txt                # Configuração do build C++ / pybind11 (Ambos)
+├── pyproject.toml                # Metadados do pacote Python e scikit-build (Ambos)
+├── cpp/                          # Escopo exclusivo do Time C++
 │   ├── include/
-│   │   ├── series.hpp
-│   │   ├── integration.hpp
-│   │   └── taylor.hpp
+│   │   ├── series.hpp            # Contratos de cabeçalho: Séries Numéricas
+│   │   ├── integration.hpp       # Contratos de cabeçalho: Integrador de Funções
+│   │   └── taylor.hpp            # Contratos de cabeçalho: Polinômio de Taylor
 │   ├── src/
-│   │   ├── series.cpp
-│   │   ├── integration.cpp
-│   │   └── taylor.cpp
-│   └── bindings.cpp
+│   │   ├── series.cpp            # Implementação modular de séries
+│   │   ├── integration.cpp       # Implementação modular de quadratura
+│   │   └── taylor.cpp            # Implementação modular de Taylor
+│   └── bindings.cpp              # Exportação pybind11 (_mathcore)
 ├── python/
-│   └── mathlab/
-│       ├── __init__.py
-│       └── api.py
-└── tests/
-    ├── test_series.py
-    ├── test_integration.py
-    └── test_taylor.py
+│   └── mathlab/                  # Escopo exclusivo do Time Python
+│       ├── __init__.py           # Ponto de exportação do pacote
+│       └── api.py                # Fachada pública e validações defensivas
+└── tests/                        # Escopo exclusivo do Time Python
+    ├── test_series.py            # Bateria pytest: Séries
+    ├── test_integration.py       # Bateria pytest: Integração
+    └── test_taylor.py            # Bateria pytest: Taylor
 ```
 
-`cpp/` pertence ao núcleo e à integração nativa. `python/mathlab/` pertence à API pública. `tests/` valida o comportamento observado pelo consumidor Python.
+---
 
-Arquivos de build são compartilhados. Mudanças neles exigem revisão cruzada.
+## 7. Especificação dos Módulos Matemáticos e Contratos Abstratos
 
-## 10. Fluxo de trabalho
+Os módulos foram simplificados para permitir implementação e refatoração completas em 120 minutos:
 
-1. **Alinhamento:** apresentar objetivos, arquitetura, contratos e métricas.
-2. **Linha de base:** executar build, testes e análises antes das mudanças.
-3. **Refatoração inicial:** cada time atua em sua área sem alterar contratos.
-4. **Checkpoint:** comparar comportamento, alertas e legibilidade.
-5. **Integração:** revisar em conjunto mudanças na fronteira entre linguagens.
-6. **Validação final:** repetir build, testes e análises.
-7. **Retrospectiva:** registrar ganhos, limites e decisões técnicas.
+### 7.1 Módulo 1: Convergência e Divergência de Séries Numéricas
 
-Refatorações devem ser pequenas, revisáveis e validadas continuamente. Testes não devem ser removidos ou enfraquecidos para permitir uma mudança.
+- **Objetivo Matemático:** Avaliar a estabilidade e o comportamento assintótico de uma série numérica $\sum a_n$, computando a soma aproximada até uma tolerância $\epsilon$ com critério de corte em $N_{max}$ termos.
+- **Contrato de Interface:**
+  - *Entradas:* Parâmetros da série (razão $r$ e termo inicial $a$ para séries geométricas), tolerância $\epsilon > 0$, limite máximo de iterações $N_{max} \ge 1$.
+  - *Saídas:* Registro estruturado contendo flag de convergência (`bool`), valor da soma acumulada (`float`) e contagem de iterações executadas (`int`).
+  - *Garantias e Exceções:* Parâmetros $\epsilon \le 0$ ou $N_{max} < 1$ disparam erro imediato. Séries com divergência matemática manifesta ($|r| \ge 1$) retornam status explícito de divergência ou disparam exceção controlada, sem laços infinitos.
 
-## 11. Estratégia de qualidade
+### 7.2 Módulo 2: Integrador Numérico de Funções
 
-### Testes
+- **Objetivo Matemático:** Determinar o valor aproximado da integral definida $\int_a^b f(x)\,dx$ sobre intervalos contínuos e limitados.
+- **Contrato de Interface:**
+  - *Entradas:* Seletor da função de teste, limites de integração $a$ e $b$, número de subintervalos $n \ge 1$, seletor da regra de quadratura (`trapezoidal` ou `simpson`).
+  - *Saídas:* Valor escalar da integral aproximada (`float`).
+  - *Garantias e Exceções:* Intervalos degenerados ($a \ge b$) e contagens de passos inválidas ($n \le 0$) disparam erro imediato. A regra de Simpson exige número par de subintervalos, disparando exceção se violada.
 
-A suíte deve cobrir comportamento nominal, limites relevantes e erros previstos para cada domínio matemático.
+### 7.3 Módulo 3: Aproximação por Polinômio de Taylor
 
-Testes devem verificar contratos públicos, não detalhes internos. Comparações numéricas devem usar tolerâncias documentadas e coerentes com o método avaliado.
+- **Objetivo Matemático:** Calcular o valor aproximado de funções elementares analíticas ($e^x$, $\sin(x)$, $\cos(x)$) em torno de um ponto de expansão $x_0$ com ordem finita $n$:
+  $$P_n(x) = \sum_{k=0}^n \frac{f^{(k)}(x_0)}{k!} (x - x_0)^k$$
+- **Contrato de Interface:**
+  - *Entradas:* Ponto de avaliação $x$, centro de expansão $x_0$, ordem polinomial $n \ge 0$, seletor da função elementar.
+  - *Saídas:* Valor escalar correspondente à aproximação polinomial $P_n(x)$ (`float`).
+  - *Garantias e Exceções:* Ordem negativa ($n < 0$) ou ordens que excedam o limite de precisão numérica sem estouro ($n > 20$) disparam erro de validação.
 
-### Análise estática
+---
 
-`clang-tidy` e `Ruff` devem detectar riscos, inconsistências e complexidade desnecessária. Alertas críticos devem ser resolvidos antes da entrega.
+## 8. Mapeamento de Code Smells e Diretrizes de Refatoração
 
-### Métricas de manutenibilidade
+A refatoração durante o workshop é guiada por objetivos mensuráveis de qualidade:
 
-Code Health pode comparar o estado inicial e final. A métrica serve como evidência auxiliar, não como objetivo isolado.
+### 8.1 Time C++ (Núcleo & Bindings)
 
-### Revisão cruzada
+- **Quebra de Métodos Longos (*Long Method*):** Decompor laços extensos em subfunções coesas e reutilizáveis (por exemplo, isolar a computação do termo $k$-ésimo da soma acumulada).
+- **Redução de Complexidade Ciclomática (*Deep Nested Complexity*):** Eliminar laços aninhados excessivos em rotinas de amostragem; atingir redução de complexidade $\ge 30\%$.
+- **Eliminação de *Primitive Obsession*:** Agrupar conjuntos correlacionados de parâmetros de configuração em estruturas leves ou registros nomeados.
+- **Erradicação de Falhas Silenciosas:** Substituir quaisquer retornos sentinela por lançamentos explícitos de `std::invalid_argument` ou `std::runtime_error`.
 
-Toda mudança em tipos, erros ou operações expostas deve receber revisão dos dois times.
+### 8.2 Time Python (API, Validação & Testes)
 
-## 12. Documentação mínima
+- **Eliminação de Condicionais Aninhadas (*Complex Conditionals* & *Nested Ifs*):** Substituir blocos de validação aninhados por *guard clauses* imediatas com retorno antecipado.
+- **Tipagem Estática Completa:** Assegurar anotações de tipo (*type hints*) em todas as funções públicas da API.
+- **Garantia de Cobertura via pytest:**
+  - *Cenários Nominais:* Validação de resultados matemáticos conhecidos analiticamente com tolerâncias rigorosas (`math.isclose` ou `numpy.isclose`).
+  - *Cenários de Borda:* Avaliação com passos unitários e limites mínimos de tolerância.
+  - *Cenários de Exceção:* Garantia de captura e asserção de `pytest.raises(ValueError)`.
+- **Conformidade de Linter:** Garantir conformidade total com o `Ruff` (sem alertas de complexidade C901 ou simplificação SIM).
 
-Cada operação pública deve documentar:
+---
 
-- finalidade;
-- entradas e saídas;
-- condições de erro;
-- limites e premissas numéricas;
-- tolerância esperada, quando aplicável.
+## 9. Matriz de Atribuição e Handoff (RACI)
 
-Decisões arquiteturais relevantes devem registrar contexto, decisão, justificativa e consequências.
+| Atividade / Entregável | Time C++ | Time Python | Host (Professor) |
+| :--- | :---: | :---: | :---: |
+| **Definição dos Contratos de Assinatura FFI** | Responsável | Aprovador | Consultado |
+| **Implementação dos Algoritmos Numéricos (C++)** | Responsável | Consultado | Informado |
+| **Construção dos Bindings FFI (pybind11)** | Responsável | Apoio | Consultado |
+| **Implementação da Fachada e Guard Clauses (Python)** | Informado | Responsável | Consultado |
+| **Desenvolvimento da Suíte de Testes (pytest)** | Consultado | Responsável | Aprovador |
+| **Auditoria de Linters (clang-tidy e Ruff)** | Responsável (C++) | Responsável (Py) | Consultado |
+| **Monitoramento de Code Health (CodeScene)** | Apoio | Apoio | Responsável |
 
-Comandos de build, análise e teste devem permanecer centralizados na documentação do projeto ou nas tarefas do editor.
+---
 
-## 13. Critérios de aceitação
+## 10. Cronograma Operacional da Dinâmica (120 Minutos)
 
-A atividade estará concluída quando:
+```mermaid
+timeline
+    title Cronograma do Workshop de Refatoração (120 min)
+    00:00 - 00:15 : Alinhamento & Setup : Apresentação dos objetivos, regras de qualidade e conexão via Live Share
+    00:15 - 00:30 : Contratos FFI : Definição formal das assinaturas C++ ↔ Python e validação do build inicial
+    00:30 - 00:55 : Ciclo 1 (Séries & Taylor) : Time C++ codifica sub-rotinas / Time Python cria testes e validação
+    00:55 - 01:00 : Checkpoint 1 : Apresentação parcial e primeira medição do Code Health no CodeScene
+    01:00 - 01:25 : Ciclo 2 (Integrador & Erros) : Inversão de papéis: tratamento de exceções e quadratura numérica
+    01:25 - 01:30 : Checkpoint 2 : Auditoria de conformidade de linters (clang-tidy, Ruff) e cobertura
+    01:30 - 01:50 : Validação Integrada : Execução conjunta da suíte completa de testes no ambiente compartilhado
+    01:50 - 02:00 : Retrospectiva : Análise da evolução do Code Health final e encerramento técnico
+```
 
-- o pacote puder ser construído no ambiente do host;
-- a API Python acessar o núcleo C++ somente pela camada de integração;
-- os três domínios possuírem contratos claros e testes independentes;
-- todos os testes automatizados passarem;
-- não houver falhas silenciosas;
-- alertas críticos de `clang-tidy` e `Ruff` estiverem resolvidos;
-- responsabilidades entre os times estiverem respeitadas;
-- mudanças de contrato estiverem documentadas e revisadas;
-- a equipe conseguir explicar as principais refatorações e seus efeitos.
+- **Protocolo Live Share:** O Host (professor) mantém o ambiente central de compilação, análise estática e servidor de testes, compartilhando a sessão via Live Share / p2p-live-share. Os alunos atuam como colaboradores convidados sem necessidade de configurações pesadas locais. No minuto 01:00, os alunos invertem ou revisam as responsabilidades da equipe parceira.
 
-## 14. Fora de escopo
+---
 
-Não fazem parte desta atividade:
+## 11. Critérios de Aceitação (Definition of Done - DoD)
 
-- comunicação distribuída por IPC ou rede;
-- interfaces gráficas;
-- persistência de dados;
-- otimizações sem evidência de necessidade;
-- expansão para novos domínios matemáticos;
-- automação de implantação em produção.
+A entrega da dinâmica requer o atendimento integral de todos os seguintes itens:
 
-Esses itens só devem ser considerados após conclusão e validação do escopo principal.
+1. **Testes Automatizados 100% Verdes:** Suíte `pytest` sem falhas em cenários nominais, de borda e de tratamento de exceções.
+2. **Modularidade e Baixa Complexidade:** Funções coesas, métodos curtos e redução de complexidade ciclomática em conformidade com as metas.
+3. **Zero Falhas Silenciosas:** Ausência absoluta de retornos sentinela ou falhas não tratadas; exceções matemáticas mapeadas com clareza.
+4. **Validação Defensiva Transparente:** Camada de entrada em Python protegida exclusivamente por *guard clauses* (sem condicionais aninhadas).
+5. **Meta de Code Health:** Pontuação mantida em $\ge 8.5/10$ no **CodeScene** para todos os módulos refatorados.
+6. **Conformidade com Linters:** Zero violações críticas registradas pelo `clang-tidy` e pelo `Ruff`.
+
+---
+
+<!-- BMAD Quality Gate Verification -->
+<!-- verify: [ -f OBJECTIVE.md ] && grep -q "Padrões de Projeto" OBJECTIVE.md && grep -q "Convergência e Divergência de Séries" OBJECTIVE.md && grep -q "Integrador Numérico de Funções" OBJECTIVE.md && grep -q "Polinômio de Taylor" OBJECTIVE.md && grep -q "Time C++" OBJECTIVE.md && grep -q "Time Python" OBJECTIVE.md -->

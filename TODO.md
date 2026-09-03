@@ -8,11 +8,11 @@ Para isso temos algumas tarefas:
 TIME CPP:
 - [X] codigo .cpp que recebe dois numeros e retorna a soma deles (receber inputs e outputs)- Joao
 TIME PY:
-- [X] codigo .py que chama o código do .cpp
-- [X] Teste em python (tests)
+- [X] codigo .py que chama o código do .cpp - Rafa
+- [X] Teste em python (tests) - Rafa
 
 Para testar:
-1. Esteja em math-calculus-project/
+1. Esteja em `math-calculus-project/` (a pasta raiz)
 2. python setup.py build_ext --inplace
 3. pytest
 
@@ -21,12 +21,13 @@ Quando terminarmos a v1, teremos encostado em todo o escopo do projeto:
 
 (V2) TDD das funções matematicas
 TIME PYTHON e CPP:
-- [ ]  Definição da interface de chamada das funções (quais as entradas, quais as saídas)
+- [ ]  Definição da interface de chamada das funções (quais as entradas, quais as saídas, quais os erros)
 TIME PYTHON:
 - [ ] Testes em Python das chamadas da funcionalidade (que executa os binarios)
 - [ ] Códigos em Python para chamar as funções, de forma efetiva
+(precisa ser quebrado em subtarefas)
 TIME CPP:
-- [ ] Implementar os algoritmos de integration,series,taylor 
+- [ ] Implementar os algoritmos de integration,series,taylor  (precisa ser quebrado em subtarefas)
 
 TIMES:
 1) Python: Rafa, Vitor
