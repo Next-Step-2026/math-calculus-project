@@ -1,0 +1,7 @@
+pybind11
+scikit-build-core
+numpy
+pytest
+pytest-cov
+ruff
+setuptools

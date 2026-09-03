@@ -1,0 +1,25 @@
+[build-system]
+requires = ["scikit-build-core>=0.9.0", "pybind11>=2.12.0"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "mathlab"
+version = "0.1.0"
+description = "Biblioteca de calculo numerico com nucleo em C++ e fachada Python"
+readme = "OBJECTIVE.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.20.0",
+]
+
+[tool.scikit-build]
+cmake.build-type = "Release"
+wheel.packages = ["python/mathlab"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["python"]

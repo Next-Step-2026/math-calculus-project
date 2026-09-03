@@ -1,0 +1,4 @@
+-std=c++17
+-Icpp/include
+-I.venv/lib/python3.13/site-packages/pybind11/include
+-I/usr/include/python3.13
