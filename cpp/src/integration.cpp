@@ -66,5 +66,3 @@ IntegrationResult integrate_trapezoidal(const std::function<double(double)>& f, 
     double val = sum * h;
     return IntegrationResult{val,n,"trapezoidal"};
 }
-
-

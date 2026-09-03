@@ -16,11 +16,3 @@ IntegrationResult integrate_trapezoidal(const std::function<double(double)>& f, 
 // Integração pela regra de Simpson 1/3 composta (requer n par)
 IntegrationResult integrate_simpson(const std::function<double(double)>& f, double a, double b, int n);
 
-// Fachada/Estratégia unificada de integração
-IntegrationResult integrate(
-    const std::function<double(double)>& f,
-    double a,
-    double b,
-    int n,
-    const std::string& method = "simpson"
-);
