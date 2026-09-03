@@ -2,13 +2,13 @@
 #include <cmath>
 #include <stdexcept>
 
-ResultadoSerie computarSerie(
-    double termo_inicial, 
-    double razao, 
-    double termo_minimo, 
+
+void verify_parameters(
+    double termo_inicial,
+    double razao,
+    double termo_minimo,
     int indice_maximo
 ) {
-    // 1. Guard clauses: validação defensiva rigorosa contra entradas degeneradas
     if (termo_minimo <= 0.0) {
         throw std::invalid_argument("A tolerancia (termo_minimo) deve ser estritamente positiva (> 0).");
     }
@@ -18,6 +18,15 @@ ResultadoSerie computarSerie(
     if (std::abs(razao) >= 1.0) {
         throw std::runtime_error("A serie geometrica diverge estritamente para |razao| >= 1.0.");
     }
+}
+
+ResultadoSerie computarSerie(
+    double termo_inicial, 
+    double razao, 
+    double termo_minimo, 
+    int indice_maximo
+) {
+    verify_parameters(termo_inicial, razao, termo_minimo, indice_maximo);
 
     // 2. Acumulação termo a termo da série geométrica (a_k = a_{k-1} * r)
     double termo_atual = termo_inicial;

@@ -7,6 +7,14 @@ struct ResultadoSerie {
     int iteracoes;
 };
 
+// Verifica os parametros da serie
+void verify_parameters(
+    double termo_inicial, 
+    double razao, 
+    double termo_minimo, 
+    int indice_maximo
+);
+
 // Assinatura da função de cálculo de séries geométricas
 ResultadoSerie computarSerie(
     double termo_inicial, 
