@@ -1,6 +1,7 @@
 #ifndef TAYLOR_HPP
 #define TAYLOR_HPP
 
+#include <cmath>
 #include <stdexcept>
 #include <vector>
 
@@ -17,6 +18,24 @@ enum class Function {
     Cos,
     Ln
 };
+
+/**
+ * @brief Value Object para o centro da expansão de Taylor.
+ */
+class TaylorCenter {
+    double value_ = 0.0;
+public:
+    constexpr TaylorCenter() noexcept = default;
+    explicit TaylorCenter(double value) {
+        if (!std::isfinite(value)) {
+            throw std::invalid_argument("Taylor center must be finite");
+        }
+        value_ = value;
+    }
+    [[nodiscard]] constexpr double value() const noexcept { return value_; }
+    constexpr operator double() const noexcept { return value_; }
+};
+
 /**
  * @brief Value Object para a ordem do Polinômio de Taylor (0 <= order <= 20).
  */
@@ -39,18 +58,18 @@ public:
  */
 struct TaylorResult {
     double value;
-    int order;
-    double center;
+    TaylorOrder order;
+    TaylorCenter center;
     Function function_type;
 };
 
 /**
  * @brief Classe que representa um Polinômio de Taylor.
- * Encapsula os coeficientes, o centro e a ordem, resolvendo a
- * "Primitive Obsession" de usar um std::vector<double> solto.
+ * Encapsula os coeficientes, o centro e a ordem como value objects.
  */
 class TaylorPolynomial {
 public:
+    TaylorPolynomial(Function function_type, TaylorCenter x0, TaylorOrder order);
     TaylorPolynomial(Function function_type, double x0, TaylorOrder order);
     TaylorPolynomial(Function function_type, double x0, int order);
     /**
@@ -68,15 +87,15 @@ public:
     double evaluate(double x) const;
 
     // Getters para acessar os dados encapsulados de forma segura.
-    int get_order() const { return order_; }
-    double get_center() const { return center_; }
+    TaylorOrder get_order() const { return order_; }
+    TaylorCenter get_center() const { return center_; }
     Function get_function_type() const { return function_type_; }
     const std::vector<double>& get_coefficients() const { return coefficients_; }
 
 private:
     std::vector<double> coefficients_;
-    int order_;
-    double center_;
+    TaylorOrder order_;
+    TaylorCenter center_;
     Function function_type_;
 };
 
@@ -90,9 +109,10 @@ private:
  * @param order A ordem do polinômio a ser usado.
  * @return Um objeto TaylorResult contendo o valor aproximado e os detalhes.
  */
+TaylorResult approximate_taylor(Function function_type, double x, TaylorCenter x0, TaylorOrder order);
 TaylorResult approximate_taylor(Function function_type, double x, double x0, TaylorOrder order);
 inline TaylorResult approximate_taylor(Function function_type, double x, double x0, int order) {
-    return approximate_taylor(function_type, x, x0, TaylorOrder(order));
+    return approximate_taylor(function_type, x, TaylorCenter(x0), TaylorOrder(order));
 }
 /**
  * @brief Avalia polinomio via algoritmo de Horner
