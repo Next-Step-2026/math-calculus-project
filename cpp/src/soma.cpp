@@ -5,7 +5,11 @@ namespace py = pybind11;
 
 // Implementação matemática pura (Sem nenhuma dependência de Python ou pybind11)
 float soma(float primeiro, float segundo) {
-    return primeiro + segundo;
+
+    // implementacao
+    float value = primeiro + segundo;
+
+    return value;
 }
 
 PYBIND11_MODULE(_soma_cpp, m) {

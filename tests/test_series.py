@@ -17,6 +17,21 @@ def test_geometric_series_with_alternating_ratio():
     assert res.sum == pytest.approx(2.0 / 3.0, rel=1e-6)
 
 
+def test_geometric_series_analytical_ratio_one_third():
+    # S = a / (1 - r) = 3.0 / (1 - 1/3) = 3.0 / (2/3) = 4.5
+    res = mathlab.compute_series(a=3.0, r=1.0 / 3.0, eps=1e-10, n_max=2000)
+    assert res.converged is True
+    assert res.sum == pytest.approx(4.5, rel=1e-8)
+
+
+def test_series_fine_tolerance():
+    # Tolerância fina de eps = 1e-10
+    res = mathlab.compute_series(a=1.0, r=0.5, eps=1e-10, n_max=2000)
+    assert res.converged is True
+    assert res.sum == pytest.approx(2.0, rel=1e-9)
+    assert res.iterations > 20
+
+
 def test_series_edge_n_max_one():
     # n_max = 1 deve retornar apenas o primeiro termo
     res = mathlab.compute_series(a=3.5, r=0.2, eps=1e-8, n_max=1)

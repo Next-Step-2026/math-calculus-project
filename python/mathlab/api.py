@@ -74,17 +74,24 @@ _INTEGRATION_STRATEGIES: Final[
 
 def integrate(
     func: Callable[[float], float],
-    interval: _mathcore.IntegrationInterval,
-    n: int,
+    a_or_interval: _mathcore.IntegrationInterval | float,
+    b_or_n: float,
+    n: int | None = None,
     method: str = "simpson",
 ) -> float:
     """Integra no intervalo informado usando método numérico selecionado."""
-    if not isinstance(interval, _mathcore.IntegrationInterval):
-        raise TypeError("interval must be an IntegrationInterval")
     strategy = _INTEGRATION_STRATEGIES.get(method)
     if strategy is None:
         raise ValueError("method must be 'simpson' or 'trapezoidal'")
-    return strategy(func, interval.lower, interval.upper, n)
+    if isinstance(a_or_interval, _mathcore.IntegrationInterval):
+        _require_integer(b_or_n, "n")
+        return strategy(func, a_or_interval.lower, a_or_interval.upper, int(b_or_n))
+    if n is None:
+        raise TypeError("integrate requires (func, a, b, n, method) or (func, interval, n, method)")
+    _require_number(a_or_interval, "a")
+    _require_number(b_or_n, "b")
+    _require_integer(n, "n")
+    return strategy(func, float(a_or_interval), float(b_or_n), n)
 
 
 def compute_series(
@@ -140,6 +147,8 @@ def approximate_taylor(
     _require_integer(order, "order")
     if order < 0 or order > 20:
         raise ValueError("order must be between 0 and 20")
+    if func_name == "ln" and (x <= 0 or x0 <= 0):
+        raise ValueError("ln requires x > 0 and expansion center x0 > 0")
     resultado = _mathcore.approximate_taylor(func_name, x, x0, order)
     return resultado.value
 

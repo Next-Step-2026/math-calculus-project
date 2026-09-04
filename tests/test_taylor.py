@@ -36,6 +36,43 @@ def test_taylor_order_zero():
     assert val == pytest.approx(1.0)
 
 
+def test_taylor_evaluation_point_equals_center():
+    # Quando x == x0, P_n(x0) == f(x0) para qualquer ordem
+    assert mathlab.approximate_taylor("exp", 2.0, 2.0, 5) == pytest.approx(
+        math.exp(2.0)
+    )
+    assert mathlab.approximate_taylor("sin", 1.5, 1.5, 7) == pytest.approx(
+        math.sin(1.5)
+    )
+    assert mathlab.approximate_taylor("cos", 0.7, 0.7, 4) == pytest.approx(
+        math.cos(0.7)
+    )
+    assert mathlab.approximate_taylor("ln", 2.5, 2.5, 6) == pytest.approx(math.log(2.5))
+
+
+def test_taylor_ln_domain_exceptions():
+    # ln(x) exige x > 0 e centro de expansão x0 > 0
+    with pytest.raises(
+        ValueError, match="ln requires x > 0 and expansion center x0 > 0"
+    ):
+        mathlab.approximate_taylor("ln", -1.0, 1.0, 5)
+
+    with pytest.raises(
+        ValueError, match="ln requires x > 0 and expansion center x0 > 0"
+    ):
+        mathlab.approximate_taylor("ln", 0.0, 1.0, 5)
+
+    with pytest.raises(
+        ValueError, match="ln requires x > 0 and expansion center x0 > 0"
+    ):
+        mathlab.approximate_taylor("ln", 1.0, -1.0, 5)
+
+    with pytest.raises(
+        ValueError, match="ln requires x > 0 and expansion center x0 > 0"
+    ):
+        mathlab.approximate_taylor("ln", 1.0, 0.0, 5)
+
+
 def test_taylor_order_twenty():
     # Ordem 20 e limite maximo permitido
     val = mathlab.approximate_taylor("exp", 1.0, 0.0, 20)

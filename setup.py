@@ -1,5 +1,20 @@
+import sys
+from pathlib import Path
+
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 from setuptools import find_packages, setup
+
+# Ensure Boost is available locally if missing
+boost_contract = (
+    Path(__file__).resolve().parent / "cpp" / "include" / "boost" / "contract.hpp"
+)
+if not boost_contract.exists():
+    try:
+        from scripts.fetch_boost import install_boost
+
+        install_boost()
+    except (OSError, RuntimeError, ImportError) as exc:
+        print(f"Warning: Could not auto-fetch boost: {exc}", file=sys.stderr)
 
 ext_modules = [
     Pybind11Extension(

@@ -88,11 +88,44 @@ As equipes devem estruturar a solução aplicando os seguintes padrões arquitet
 | **pybind11** | Geração do módulo de extensão nativa (`_mathcore`) | Time C++ / Python |
 | **CMake & scikit-build-core** | Automação de compilação integrada ao packaging Python | Ambos |
 | **Python 3.10+ & NumPy** | Camada de fachada, sanitização de dados e consumo de alto nível | Time Python |
-| **pytest** | Automação da suíte de testes de regressão e validação comportamental | Time Python |
+| **pytest** | Testes comportamentais e de regressão da fachada e integração | Time Python |
+| **deal lint** | Análise estática de contratos, invariantes e efeitos da camada Python | Time Python |
+| **deal prove** | Verificação limitada de contratos Python em funções selecionadas | Time Python |
+| **pyright** | Verificação estática de tipos da API Python | Time Python |
 | **clang-tidy & clangd** | Análise estática, modernização e prevenção de code smells em C++ | Time C++ |
+| **AddressSanitizer & UndefinedBehaviorSanitizer** | Detecção dinâmica de acessos inválidos e comportamento indefinido no C++ | Time C++ |
+| **ctest** | Execução de testes registrados pelo CMake | Time C++ |
+| **ESBMC** | Verificação formal ou limitada de `src/maximum.cpp` | Time C++ |
 | **Ruff** | Linter e formatador de alta performance para Python (complexidade C901) | Time Python |
 | **CodeScene** | Monitoramento em tempo real do índice de *Code Health* e complexidade | Ambos |
 | **Live Share / p2p-live-share** | Ambiente colaborativo síncrono para pair programming | Ambos |
+
+### 5.1 Protocolo Obrigatório de Verificação
+
+Cada alteração Python deve passar por todos os comandos:
+
+```bash
+ruff check .
+deal lint
+deal prove
+pyright
+pytest
+```
+
+Cada alteração C++ deve passar pela análise estática, pelo build com sanitizers e pelos testes CMake:
+
+```bash
+clang-tidy
+cmake -S . -B build -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined"
+cmake --build build
+ctest --test-dir build
+```
+
+Componentes C++ selecionados com lógica limitada devem também ser verificados formalmente. A partir de `cpp/`, executar:
+
+```bash
+esbmc src/maximum.cpp
+```
 
 ---
 
@@ -176,7 +209,7 @@ A refatoração durante o workshop é guiada por objetivos mensuráveis de quali
   - *Cenários Nominais:* Validação de resultados matemáticos conhecidos analiticamente com tolerâncias rigorosas (`math.isclose` ou `numpy.isclose`).
   - *Cenários de Borda:* Avaliação com passos unitários e limites mínimos de tolerância.
   - *Cenários de Exceção:* Garantia de captura e asserção de `pytest.raises(ValueError)`.
-- **Conformidade de Linter:** Garantir conformidade total com o `Ruff` (sem alertas de complexidade C901 ou simplificação SIM).
+- **Conformidade de Contratos, Tipos e Linter:** Garantir execução sem violações de `deal lint`, `deal prove`, `pyright` e `Ruff` (sem alertas de complexidade C901 ou simplificação SIM).
 
 ---
 
@@ -189,7 +222,7 @@ A refatoração durante o workshop é guiada por objetivos mensuráveis de quali
 | **Construção dos Bindings FFI (pybind11)** | Responsável | Apoio | Consultado |
 | **Implementação da Fachada e Guard Clauses (Python)** | Informado | Responsável | Consultado |
 | **Desenvolvimento da Suíte de Testes (pytest)** | Consultado | Responsável | Aprovador |
-| **Auditoria de Linters (clang-tidy e Ruff)** | Responsável (C++) | Responsável (Py) | Consultado |
+| **Auditoria de qualidade e verificação** (`deal`, `pyright`, `pytest`, `clang-tidy`, sanitizers, `ctest` e ESBMC) | Responsável (C++) | Responsável (Py) | Consultado |
 | **Monitoramento de Code Health (CodeScene)** | Apoio | Apoio | Responsável |
 
 ---
@@ -204,8 +237,8 @@ timeline
     00:30 - 00:55 : Ciclo 1 (Séries & Taylor) : Time C++ codifica sub-rotinas / Time Python cria testes e validação
     00:55 - 01:00 : Checkpoint 1 : Apresentação parcial e primeira medição do Code Health no CodeScene
     01:00 - 01:25 : Ciclo 2 (Integrador & Erros) : Inversão de papéis: tratamento de exceções e quadratura numérica
-    01:25 - 01:30 : Checkpoint 2 : Auditoria de conformidade de linters (clang-tidy, Ruff) e cobertura
-    01:30 - 01:50 : Validação Integrada : Execução conjunta da suíte completa de testes no ambiente compartilhado
+    01:25 - 01:30 : Checkpoint 2 : Auditoria com deal, pyright, pytest, clang-tidy, sanitizers, ctest e ESBMC selecionado
+    01:30 - 01:50 : Validação Integrada : Execução conjunta de todos os checks no ambiente compartilhado
     01:50 - 02:00 : Retrospectiva : Análise da evolução do Code Health final e encerramento técnico
 ```
 
@@ -217,12 +250,13 @@ timeline
 
 A entrega da dinâmica requer o atendimento integral de todos os seguintes itens:
 
-1. **Testes Automatizados 100% Verdes:** Suíte `pytest` sem falhas em cenários nominais, de borda e de tratamento de exceções.
-2. **Modularidade e Baixa Complexidade:** Funções coesas, métodos curtos e redução de complexidade ciclomática em conformidade com as metas.
-3. **Zero Falhas Silenciosas:** Ausência absoluta de retornos sentinela ou falhas não tratadas; exceções matemáticas mapeadas com clareza.
-4. **Validação Defensiva Transparente:** Camada de entrada em Python protegida exclusivamente por *guard clauses* (sem condicionais aninhadas).
-5. **Meta de Code Health:** Pontuação mantida em $\ge 8.5/10$ no **CodeScene** para todos os módulos refatorados.
-6. **Conformidade com Linters:** Zero violações críticas registradas pelo `clang-tidy` e pelo `Ruff`.
+1. **Checks Python Verdes:** `ruff check .`, `deal lint`, `deal prove`, `pyright` e `pytest` executam sem falhas nos cenários nominais, de borda e de tratamento de exceções.
+2. **Checks C++ Verdes:** `clang-tidy`, build com `-fsanitize=address,undefined` e `ctest` executam sem violações ou falhas.
+3. **Verificação Formal Selecionada:** `esbmc src/maximum.cpp`, executado a partir de `cpp/`, conclui sem contraexemplo nas propriedades delimitadas do componente.
+4. **Modularidade e Baixa Complexidade:** Funções coesas, métodos curtos e redução de complexidade ciclomática em conformidade com as metas.
+5. **Zero Falhas Silenciosas:** Ausência absoluta de retornos sentinela ou falhas não tratadas; exceções matemáticas mapeadas com clareza.
+6. **Validação Defensiva Transparente:** Camada de entrada em Python protegida exclusivamente por *guard clauses* (sem condicionais aninhadas).
+7. **Meta de Code Health:** Pontuação mantida em $\ge 8.5/10$ no **CodeScene** para todos os módulos refatorados.
 
 ---
 

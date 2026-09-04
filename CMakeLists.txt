@@ -17,3 +17,9 @@ pybind11_add_module(_mathcore
 target_include_directories(_mathcore PRIVATE cpp/include)
 
 install(TARGETS _mathcore DESTINATION mathlab)
+
+enable_testing()
+add_executable(maximum_test cpp/src/maximum.cpp)
+target_include_directories(maximum_test PRIVATE cpp/include)
+add_test(NAME MaximumContractsTest COMMAND maximum_test)
+

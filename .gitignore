@@ -286,4 +286,8 @@ vcpkg_installed/
 
 # test output & cache
 Testing/
-.cache/
+.cache/AmandaSampaio.md
+resumo.md
+
+# External dependencies fetched locally
+cpp/include/boost/
