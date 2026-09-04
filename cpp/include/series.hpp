@@ -59,6 +59,15 @@ public:
     constexpr operator double() const noexcept { return value_; }
 };
 
+class InitialTerm {
+    double value_ = 1.0;
+public:
+    constexpr InitialTerm() noexcept = default;
+    explicit constexpr InitialTerm(double v) noexcept : value_(v) {}
+    [[nodiscard]] constexpr double value() const noexcept { return value_; }
+    constexpr operator double() const noexcept { return value_; }
+};
+
 // ============================================================================
 // DOMAIN VALUE OBJECTS (Agrupamentos Semânticos de Séries)
 // ============================================================================
@@ -74,13 +83,13 @@ struct ConvergenceCriteria {
 };
 
 struct GeometricSeries {
-    double a = 1.0;
+    InitialTerm a{};
     GeometricRatio r{};
 
     constexpr GeometricSeries() = default;
     GeometricSeries(double initial_term, double ratio)
-        : a(initial_term), r(GeometricRatio(ratio)) {}
-    constexpr GeometricSeries(double initial_term, GeometricRatio ratio)
+        : a(InitialTerm(initial_term)), r(GeometricRatio(ratio)) {}
+    constexpr GeometricSeries(InitialTerm initial_term, GeometricRatio ratio)
         : a(initial_term), r(ratio) {}
 };
 
@@ -91,10 +100,50 @@ struct PSeries {
     explicit PSeries(double exp) : p(PSeriesExponent(exp)) {}
     constexpr explicit PSeries(PSeriesExponent exp) : p(exp) {}
 };
+enum class SeriesStatus {
+    Converged,
+    Diverged,
+    MaxIterationsReached
+};
+
+class SeriesValue {
+    double value_ = 0.0;
+public:
+    constexpr SeriesValue() noexcept = default;
+    explicit constexpr SeriesValue(double value) noexcept : value_(value) {}
+    [[nodiscard]] constexpr double value() const noexcept { return value_; }
+    constexpr operator double() const noexcept { return value_; }
+};
+
+class IterationCount {
+    int value_ = 0;
+public:
+    constexpr IterationCount() noexcept = default;
+    explicit constexpr IterationCount(int value) : value_(value) {
+        if (value < 0) {
+            throw std::invalid_argument("Iteration count must be non-negative.");
+        }
+    }
+    [[nodiscard]] constexpr int value() const noexcept { return value_; }
+    constexpr operator int() const noexcept { return value_; }
+};
+
 struct SeriesResult {
-    bool converged;
-    double sum;
-    int iterations;
+    SeriesStatus status = SeriesStatus::Diverged;
+    SeriesValue sum{};
+    IterationCount iterations{};
+
+    constexpr SeriesResult() = default;
+    constexpr SeriesResult(SeriesStatus s, SeriesValue sm, IterationCount it)
+        : status(s), sum(sm), iterations(it) {}
+    constexpr SeriesResult(bool conv, double sm, int it)
+        : status(conv ? SeriesStatus::Converged : SeriesStatus::MaxIterationsReached),
+          sum(SeriesValue(sm)),
+          iterations(IterationCount(it)) {}
+
+    [[nodiscard]] constexpr bool converged() const noexcept {
+        return status == SeriesStatus::Converged;
+    }
 };
 
 // Funções primárias do núcleo operando estritamente sobre tipos de domínio:
@@ -117,30 +166,3 @@ SeriesResult compute_p_series(
     const PSeries& series,
     const ConvergenceCriteria& criteria = {}
 );
-
-// Inline convenience forwarders (não poluem o AST de series.cpp com primitivos):
-inline void validate_series_parameters(double a, double r, const ConvergenceCriteria& criteria = {}) {
-    validate_series_parameters(GeometricSeries{a, r}, criteria);
-}
-inline void validate_series_parameters(double a, double r, double eps, int n_max) {
-    validate_series_parameters(GeometricSeries{a, r}, ConvergenceCriteria{eps, n_max});
-}
-inline SeriesResult compute_series(double a, double r, const ConvergenceCriteria& criteria = {}) {
-    return compute_series(GeometricSeries{a, r}, criteria);
-}
-inline SeriesResult compute_series(double a, double r, double eps, int n_max) {
-    return compute_series(GeometricSeries{a, r}, ConvergenceCriteria{eps, n_max});
-}
-
-inline void validate_p_series_parameters(double p, const ConvergenceCriteria& criteria = {}) {
-    validate_p_series_parameters(PSeries{p}, criteria);
-}
-inline void validate_p_series_parameters(double p, double eps, int n_max) {
-    validate_p_series_parameters(PSeries{p}, ConvergenceCriteria{eps, n_max});
-}
-inline SeriesResult compute_p_series(double p, const ConvergenceCriteria& criteria = {}) {
-    return compute_p_series(PSeries{p}, criteria);
-}
-inline SeriesResult compute_p_series(double p, double eps, int n_max) {
-    return compute_p_series(PSeries{p}, ConvergenceCriteria{eps, n_max});
-}

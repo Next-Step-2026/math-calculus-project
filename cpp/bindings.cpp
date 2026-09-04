@@ -25,9 +25,19 @@ void bind_series(py::module_& m) {
             [](ConvergenceCriteria& c, int v) { c.n_max = MaxIterations(v); }
         );
 
+    py::enum_<SeriesStatus>(m, "SeriesStatus")
+        .value("Converged", SeriesStatus::Converged)
+        .value("Diverged", SeriesStatus::Diverged)
+        .value("MaxIterationsReached", SeriesStatus::MaxIterationsReached)
+        .export_values();
+
     py::class_<GeometricSeries>(m, "GeometricSeries")
         .def(py::init<double, double>(), py::arg("a") = 1.0, py::arg("r") = 0.5)
-        .def_readwrite("a", &GeometricSeries::a)
+        .def_property(
+            "a",
+            [](const GeometricSeries& s) { return s.a.value(); },
+            [](GeometricSeries& s, double v) { s.a = InitialTerm(v); }
+        )
         .def_property(
             "r",
             [](const GeometricSeries& s) { return s.r.value(); },
@@ -42,13 +52,14 @@ void bind_series(py::module_& m) {
             [](PSeries& s, double v) { s.p = PSeriesExponent(v); }
         );
     py::class_<SeriesResult>(m, "SeriesResult")
-        .def_readonly("converged", &SeriesResult::converged)
-        .def_readonly("sum", &SeriesResult::sum)
-        .def_readonly("iterations", &SeriesResult::iterations)
+        .def_readonly("status", &SeriesResult::status)
+        .def_property_readonly("converged", [](const SeriesResult& r) { return r.converged(); })
+        .def_property_readonly("sum", [](const SeriesResult& r) { return r.sum.value(); })
+        .def_property_readonly("iterations", [](const SeriesResult& r) { return r.iterations.value(); })
         .def("__repr__", [](const SeriesResult& r) {
-            return "<SeriesResult converged=" + std::string(r.converged ? "True" : "False") +
-                   " sum=" + std::to_string(r.sum) +
-                   " iterations=" + std::to_string(r.iterations) + ">";
+            return "<SeriesResult converged=" + std::string(r.converged() ? "True" : "False") +
+                   " sum=" + std::to_string(r.sum.value()) +
+                   " iterations=" + std::to_string(r.iterations.value()) + ">";
         });
 
     m.def(
