@@ -49,12 +49,12 @@ void coeffs_ln(std::vector<double>& coeffs, double x0, std::size_t order) {
         throw std::domain_error("ln(x) requires expansion center x0 > 0");
     }
     coeffs[0] = std::log(x0);
-    if (order >= 1) {
-        double term = 1.0;
-        for (std::size_t k = 1; k <= order; ++k) {
-            term *= (k > 1 ? -(k - 1) : 1.0) / x0;
-            coeffs[k] = term / static_cast<double>(k);
-        }
+    double inv_x0_pow = 1.0 / x0;
+    double sign = 1.0;
+    for (std::size_t k = 1; k <= order; ++k) {
+        coeffs[k] = (sign * inv_x0_pow) / static_cast<double>(k);
+        inv_x0_pow /= x0;
+        sign = -sign;
     }
 }
 
@@ -62,13 +62,9 @@ void coeffs_ln(std::vector<double>& coeffs, double x0, std::size_t order) {
 
 // --- Implementação da Classe TaylorPolynomial ---
 
-TaylorPolynomial::TaylorPolynomial(Function function_type, double x0, int order)
-    : order_(order), center_(x0), function_type_(function_type) {
-    if (order < 0) {
-        throw std::invalid_argument("Taylor polynomial order must be non-negative");
-    }
-
-    const auto u_order = static_cast<std::size_t>(order);
+TaylorPolynomial::TaylorPolynomial(Function function_type, double x0, TaylorOrder order)
+    : order_(order.value()), center_(x0), function_type_(function_type) {
+    const auto u_order = static_cast<std::size_t>(order.value());
     coefficients_.resize(u_order + 1);
 
     using CoeffsFunc = std::function<void(std::vector<double>&, double, std::size_t)>;
@@ -87,25 +83,33 @@ TaylorPolynomial::TaylorPolynomial(Function function_type, double x0, int order)
     }
 }
 
-double TaylorPolynomial::evaluate(double x) const {
-    if (coefficients_.empty()) {
+TaylorPolynomial::TaylorPolynomial(Function function_type, double x0, int order)
+    : TaylorPolynomial(function_type, x0, TaylorOrder(order)) {}
+
+
+double evaluate_polynomial(const std::vector<double>& coefficients, double x, double center) {
+    if (coefficients.empty()) {
         return 0.0;
     }
-    const double u = x - center_;
+    const double u = x - center;
     double result = 0.0;
-    // Método de Horner
-    for (std::size_t i = coefficients_.size(); i > 0; --i) {
-        result = result * u + coefficients_[i - 1];
+    // Algoritmo de Horner
+    for (std::size_t i = coefficients.size(); i > 0; --i) {
+        result = result * u + coefficients[i - 1];
     }
     return result;
 }
 
+double TaylorPolynomial::evaluate(double x) const {
+    return evaluate_polynomial(coefficients_, x, center_);
+}
+
 // --- Implementação da Função Pública de Aproximação ---
 
-TaylorResult approximate_taylor(Function function_type, double x, double x0, int order) {
+TaylorResult approximate_taylor(Function function_type, double x, double x0, TaylorOrder order) {
     TaylorPolynomial poly(function_type, x0, order);
     double val = poly.evaluate(x);
-    return TaylorResult{val, order, x0, function_type};
+    return TaylorResult{val, order.value(), x0, function_type};
 }
 
 } // namespace taylor

@@ -3,49 +3,125 @@
 #include <stdexcept>
 
 
-void verify_parameters(
-    double termo_inicial,
-    double razao,
-    double termo_minimo,
-    int indice_maximo
-) {
-    if (termo_minimo <= 0.0) {
-        throw std::invalid_argument("A tolerancia (termo_minimo) deve ser estritamente positiva (> 0).");
+void ConvergenceCriteria::validate() const {
+    if (eps <= 0.0) {
+        throw std::invalid_argument("Tolerance (eps) must be strictly positive (> 0).");
     }
-    if (indice_maximo < 1) {
-        throw std::invalid_argument("O numero maximo de iteracoes (indice_maximo) deve ser no minimo 1.");
-    }
-    if (std::abs(razao) >= 1.0) {
-        throw std::runtime_error("A serie geometrica diverge estritamente para |razao| >= 1.0.");
+    if (n_max < 1) {
+        throw std::invalid_argument("Maximum iterations (n_max) must be at least 1.");
     }
 }
 
-ResultadoSerie computarSerie(
-    double termo_inicial, 
-    double razao, 
-    double termo_minimo, 
-    int indice_maximo
-) {
-    verify_parameters(termo_inicial, razao, termo_minimo, indice_maximo);
+namespace {
 
-    // 2. Acumulação termo a termo da série geométrica (a_k = a_{k-1} * r)
-    double termo_atual = termo_inicial;
-    double soma_acumulada = 0.0;
-    int iteracoes_feitas = 0;
-    bool convergiu = false;
+inline bool has_converged(double term, double eps) noexcept {
+    return std::abs(term) < eps;
+}
 
-    for (int k = 0; k < indice_maximo; ++k) {
-        soma_acumulada += termo_atual;
-        iteracoes_feitas++;
+inline double next_geometric_term(double term, double r) noexcept {
+    return term * r;
+}
 
-        // Critério de parada por tolerância residual
-        if (std::abs(termo_atual) < termo_minimo) {
-            convergiu = true;
+// EXTRACT FUNCTION: Cohesive helper for term k of p-series (1 / k^p)
+inline double p_series_term(int k, double p) noexcept {
+    return 1.0 / std::pow(static_cast<double>(k), p);
+}
+
+// DECOMPOSE CONDITIONAL: Named domain predicates for divergence rules
+inline bool is_geometric_series_divergent(double r) noexcept {
+    return std::abs(r) >= 1.0;
+}
+
+inline bool is_p_series_divergent(double p) noexcept {
+    return p <= 1.0;
+}
+
+using DivergencePredicate = bool (*)(double) noexcept;
+
+struct DivergenceRule {
+    DivergencePredicate is_divergent = nullptr;
+    const char* error_message = nullptr;
+
+    void validate(double param) const {
+        if (is_divergent != nullptr && is_divergent(param)) {
+            throw std::runtime_error(error_message);
+        }
+    }
+};
+
+// CURRYING PURAMENTE UNARIO (1 -> 1 -> 1):
+// 1. make_series_validator: vincula objeto de dominio DivergenceRule (1 arg)
+// 2. lambda retornado: delega para criteria.validate() (1 arg)
+// 3. lambda final: delega para rule.validate(param) (1 arg)
+auto make_series_validator(const DivergenceRule& rule) {
+    return [rule](const ConvergenceCriteria& criteria) {
+        criteria.validate();
+        return [rule](double param) {
+            rule.validate(param);
+        };
+    };
+}
+
+const auto geometric_validator = make_series_validator({
+    &is_geometric_series_divergent,
+    "Geometric series diverges for |r| >= 1.0."
+});
+
+const auto p_series_validator = make_series_validator({
+    &is_p_series_divergent,
+    "p-series diverges for p <= 1.0."
+});
+
+} // namespace
+
+void validate_series_parameters(const GeometricSeries& series, const ConvergenceCriteria& criteria) {
+    geometric_validator(criteria)(series.r);
+}
+
+SeriesResult compute_series(const GeometricSeries& series, const ConvergenceCriteria& criteria) {
+    validate_series_parameters(series, criteria);
+
+    double current_term = series.a;
+    double total_sum = 0.0;
+    int iterations = 0;
+    bool converged = false;
+
+    for (int k = 0; k < criteria.n_max; ++k) {
+        total_sum += current_term;
+        ++iterations;
+
+        if (has_converged(current_term, criteria.eps)) {
+            converged = true;
             break;
         }
 
-        termo_atual *= razao;
+        current_term = next_geometric_term(current_term, series.r);
     }
 
-    return ResultadoSerie{convergiu, soma_acumulada, iteracoes_feitas};
+    return SeriesResult{converged, total_sum, iterations};
+}
+
+void validate_p_series_parameters(const PSeries& series, const ConvergenceCriteria& criteria) {
+    p_series_validator(criteria)(series.p);
+}
+
+SeriesResult compute_p_series(const PSeries& series, const ConvergenceCriteria& criteria) {
+    validate_p_series_parameters(series, criteria);
+
+    double total_sum = 0.0;
+    int iterations = 0;
+    bool converged = false;
+
+    for (int k = 1; k <= criteria.n_max; ++k) {
+        const double term = p_series_term(k, series.p);
+        total_sum += term;
+        ++iterations;
+
+        if (has_converged(term, criteria.eps)) {
+            converged = true;
+            break;
+        }
+    }
+
+    return SeriesResult{converged, total_sum, iterations};
 }

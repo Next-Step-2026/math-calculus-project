@@ -1,7 +1,9 @@
 #ifndef TAYLOR_HPP
 #define TAYLOR_HPP
 
+#include <stdexcept>
 #include <vector>
+
 
 namespace taylor {
 
@@ -14,6 +16,22 @@ enum class Function {
     Sin,
     Cos,
     Ln
+};
+/**
+ * @brief Value Object para a ordem do Polinômio de Taylor (0 <= order <= 20).
+ */
+class TaylorOrder {
+    int value_ = 0;
+public:
+    constexpr TaylorOrder() noexcept = default;
+    explicit TaylorOrder(int n) {
+        if (n < 0 || n > 20) {
+            throw std::invalid_argument("Taylor polynomial order must be between 0 and 20");
+        }
+        value_ = n;
+    }
+    [[nodiscard]] constexpr int value() const noexcept { return value_; }
+    constexpr operator int() const noexcept { return value_; }
 };
 
 /**
@@ -33,13 +51,14 @@ struct TaylorResult {
  */
 class TaylorPolynomial {
 public:
+    TaylorPolynomial(Function function_type, double x0, TaylorOrder order);
+    TaylorPolynomial(Function function_type, double x0, int order);
     /**
      * @brief Construtor da classe.
      * @param function_type O tipo da função (ex: Function::Sin).
      * @param x0 O centro da expansão.
      * @param order A ordem do polinômio (deve ser não-negativa).
      */
-    TaylorPolynomial(Function function_type, double x0, int order);
 
     /**
      * @brief Avalia o polinômio em um ponto 'x'.
@@ -71,7 +90,14 @@ private:
  * @param order A ordem do polinômio a ser usado.
  * @return Um objeto TaylorResult contendo o valor aproximado e os detalhes.
  */
-TaylorResult approximate_taylor(Function function_type, double x, double x0, int order);
+TaylorResult approximate_taylor(Function function_type, double x, double x0, TaylorOrder order);
+inline TaylorResult approximate_taylor(Function function_type, double x, double x0, int order) {
+    return approximate_taylor(function_type, x, x0, TaylorOrder(order));
+}
+/**
+ * @brief Avalia polinomio via algoritmo de Horner
+ */
+double evaluate_polynomial(const std::vector<double>& coefficients, double x, double center = 0.0);
 
 } // namespace taylor
 

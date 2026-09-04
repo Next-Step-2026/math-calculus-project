@@ -13,9 +13,33 @@ namespace {
 void bind_series(py::module_& m) {
     py::class_<ConvergenceCriteria>(m, "ConvergenceCriteria")
         .def(py::init<double, int>(), py::arg("eps") = 1e-7, py::arg("n_max") = 10000)
-        .def_readwrite("eps", &ConvergenceCriteria::eps)
-        .def_readwrite("n_max", &ConvergenceCriteria::n_max);
+        .def_property(
+            "eps",
+            [](const ConvergenceCriteria& c) { return c.eps.value(); },
+            [](ConvergenceCriteria& c, double v) { c.eps = Tolerance(v); }
+        )
+        .def_property(
+            "n_max",
+            [](const ConvergenceCriteria& c) { return c.n_max.value(); },
+            [](ConvergenceCriteria& c, int v) { c.n_max = MaxIterations(v); }
+        );
 
+    py::class_<GeometricSeries>(m, "GeometricSeries")
+        .def(py::init<double, double>(), py::arg("a") = 1.0, py::arg("r") = 0.5)
+        .def_readwrite("a", &GeometricSeries::a)
+        .def_property(
+            "r",
+            [](const GeometricSeries& s) { return s.r.value(); },
+            [](GeometricSeries& s, double v) { s.r = GeometricRatio(v); }
+        );
+
+    py::class_<PSeries>(m, "PSeries")
+        .def(py::init<double>(), py::arg("p") = 2.0)
+        .def_property(
+            "p",
+            [](const PSeries& s) { return s.p.value(); },
+            [](PSeries& s, double v) { s.p = PSeriesExponent(v); }
+        );
     py::class_<SeriesResult>(m, "SeriesResult")
         .def_readonly("converged", &SeriesResult::converged)
         .def_readonly("sum", &SeriesResult::sum)
@@ -28,7 +52,9 @@ void bind_series(py::module_& m) {
 
     m.def(
         "compute_series",
-        py::overload_cast<double, double, double, int>(&compute_series),
+        [](double a, double r, double eps, int n_max) {
+            return compute_series(GeometricSeries{a, r}, ConvergenceCriteria{eps, n_max});
+        },
         py::arg("a"),
         py::arg("r"),
         py::arg("eps") = 1e-7,
@@ -38,7 +64,9 @@ void bind_series(py::module_& m) {
 
     m.def(
         "compute_p_series",
-        py::overload_cast<double, double, int>(&compute_p_series),
+        [](double p, double eps, int n_max) {
+            return compute_p_series(PSeries{p}, ConvergenceCriteria{eps, n_max});
+        },
         py::arg("p"),
         py::arg("eps") = 1e-7,
         py::arg("n_max") = 10000,
@@ -47,6 +75,13 @@ void bind_series(py::module_& m) {
 }
 
 void bind_integration(py::module_& m) {
+    py::class_<IntegrationInterval>(m, "IntegrationInterval")
+        .def(py::init<double, double>(), py::arg("a"), py::arg("b"))
+        .def_property_readonly("lower", &IntegrationInterval::lower)
+        .def_property_readonly("upper", &IntegrationInterval::upper)
+        .def_property_readonly("width", &IntegrationInterval::width)
+        .def_property_readonly("is_degenerate", &IntegrationInterval::is_degenerate);
+
     py::class_<IntegrationResult>(m, "IntegrationResult")
         .def_readonly("value", &IntegrationResult::value)
         .def_readonly("intervals", &IntegrationResult::intervals)
@@ -59,7 +94,9 @@ void bind_integration(py::module_& m) {
 
     m.def(
         "integrate_trapezoidal",
-        &integrate_trapezoidal,
+        [](const std::function<double(double)>& f, double a, double b, int n) {
+            return integrate_trapezoidal(f, a, b, n);
+        },
         py::arg("f"),
         py::arg("a"),
         py::arg("b"),
@@ -69,7 +106,9 @@ void bind_integration(py::module_& m) {
 
     m.def(
         "integrate_simpson",
-        &integrate_simpson,
+        [](const std::function<double(double)>& f, double a, double b, int n) {
+            return integrate_simpson(f, a, b, n);
+        },
         py::arg("f"),
         py::arg("a"),
         py::arg("b"),
