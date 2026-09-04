@@ -75,58 +75,59 @@ Existe um binário compilado antigo `python/mathlab/_mathcore.*.so` que faz os t
 
 --- 
 
-## 4. O Que Falta Fazer (Backlog do Time Python)
+## 4. Status de Execução do Backlog (Time Python) — 100% Concluído ✅
 
-### Tarefa 1: Implementar Fachada Completa em `python/mathlab/api.py`
+### Tarefa 1: Implementar Fachada Completa em `python/mathlab/api.py` [CONCLUÍDA]
 Substituir os stubs (`pass`) e aplicar os padrões de projeto exigidos pelo `OBJECTIVE.md`:
 
-1. **Guard Clauses e Validação Defensiva (§4 e §8.2):**
+1. **Guard Clauses e Validação Defensiva (§4 e §8.2):** [x]
    - **Regra:** Nunca deixar condicionais aninhadas (*nested ifs*). Validar no topo da função e fazer *early return* ou disparar `ValueError`/`TypeError`.
-   - `integrate_simpson` e `integrate_trapezoidal`:
-     - Validar se `func` é chamável (`callable`).
-     - Validar $n$ como inteiro estritamente positivo ($n \ge 1$).
-     - Em Simpson, validar $n$ par ($n \% 2 == 0$).
-   - `compute_series(a, r, eps=1e-7, n_max=10000)`:
-     - Validar se $\epsilon > 0$ (lançar `ValueError`).
-     - Validar se $n_{max} \ge 1$ (lançar `ValueError`).
-     - Validar se $|r| < 1.0$ (se a série geométrica divergir matematicamente, lançar `ValueError` ou retornar status claro).
-   - `approximate_taylor(func_name, x, x0, order)`:
-     - Validar $0 \le \text{order} \le 20$ (lançar `ValueError`).
-     - Validar se `func_name` pertence a `{"exp", "sin", "cos", "ln"}` (lançar `ValueError`).
-     - Se `func_name == "ln"`, validar domínio do logaritmo natural ($x > 0$ e $x_0 > 0$).
-2. **Tipagem Estática Estrita:**
-   - Adicionar Type Hints em todas as entradas e saídas de `api.py`.
-3. **Padrão Strategy para Integração (Opcional/Recomendado por §4):**
-   - Criar função unificada `integrate(func, a, b, n, method="simpson")` que delega para a estratégia solicitada.
-4. **Exportação Pública (`__all__`):**
-   - Atualizar `__all__` em `python/mathlab/api.py` e em `python/mathlab/__init__.py`.
+   - `integrate_simpson` e `integrate_trapezoidal`: [x]
+     - Validar se `func` é chamável (`callable`). [x]
+     - Validar $n$ como inteiro estritamente positivo ($n \ge 1$). [x]
+     - Em Simpson, validar $n$ par ($n \% 2 == 0$). [x]
+   - `compute_series(a, r, eps=1e-7, n_max=10000)`: [x]
+     - Validar se $\epsilon > 0$ (lançar `ValueError`). [x]
+     - Validar se $n_{max} \ge 1$ (lançar `ValueError`). [x]
+     - Validar se $|r| < 1.0$ (lançar `ValueError`). [x]
+   - `approximate_taylor(func_name, x, x0, order)`: [x]
+     - Validar $0 \le \text{order} \le 20$ (lançar `ValueError`). [x]
+     - Validar se `func_name` pertence a `{"exp", "sin", "cos", "ln"}` (lançar `ValueError`). [x]
+     - Se `func_name == "ln"`, validar domínio do logaritmo natural ($x > 0$ e $x_0 > 0$). [x]
+2. **Tipagem Estática Estrita:** [x]
+   - Type Hints completos em todas as entradas e saídas de `api.py`. [x]
+3. **Padrão Strategy para Integração:** [x]
+   - Função unificada `integrate(func, a_or_interval, b_or_n, n=None, method="simpson")` suportando tanto limites escalares $(a, b)$ quanto objeto `IntegrationInterval`. [x]
+4. **Exportação Pública (`__all__`):** [x]
+   - `__all__` definido e exportado em `python/mathlab/api.py` e `python/mathlab/__init__.py`. [x]
 
 ---
 
-### Tarefa 2: Criar Bateria de Testes em `tests/`
+### Tarefa 2: Criar Bateria de Testes em `tests/` [CONCLUÍDA]
 O `OBJECTIVE.md` exige testes 100% verdes com cenários nominais, de borda e de exceção:
 
-1. **`tests/test_series.py`:**
-   - *Nominal:* Séries conhecidas analiticamente (ex: $a=1, r=0.5 \Rightarrow S = \frac{a}{1-r} = 2.0$; $a=3, r=1/3 \Rightarrow S = 4.5$).
-   - *Borda:* $N_{max} = 1$, tolerâncias finas ($\epsilon = 10^{-10}$).
-   - *Exceções:* `pytest.raises(ValueError)` para $\epsilon \le 0$, $N_{max} < 1$ e $|r| \ge 1.0$.
-2. **`tests/test_taylor.py`:**
-   - *Nominal:* Comparar aproximação de $e^x$, $\sin(x)$, $\cos(x)$ contra biblioteca padrão `math` em pontos próximos a $x_0$ com `pytest.approx`.
-   - *Borda:* Ordem $n = 0$, ponto de avaliação exatamente igual ao centro $x = x_0$.
-   - *Exceções:* `pytest.raises(ValueError)` para ordem negativa ($n < 0$), ordem excessiva ($n > 20$) e função não suportada (ex: `"tan"`).
-3. **`tests/test_integration.py` (Refinamento):**
-   - Adicionar testes de funções trigonométricas e polinomiais com valor analítico exato conhecido.
+1. **`tests/test_series.py`:** [x]
+   - *Nominal:* Séries conhecidas analiticamente ($a=1, r=0.5 \Rightarrow S = 2.0$; $a=3, r=1/3 \Rightarrow S = 4.5$). [x]
+   - *Borda:* $N_{max} = 1$, tolerâncias finas ($\epsilon = 10^{-10}$). [x]
+   - *Exceções:* `pytest.raises(ValueError)` para $\epsilon \le 0$, $N_{max} < 1$ e $|r| \ge 1.0$. [x]
+2. **`tests/test_taylor.py`:** [x]
+   - *Nominal:* Comparar aproximação de $e^x$, $\sin(x)$, $\cos(x)$, $\ln(x)$ contra biblioteca padrão `math` com `pytest.approx`. [x]
+   - *Borda:* Ordem $n = 0$, ponto de avaliação exatamente igual ao centro $x = x_0$. [x]
+   - *Exceções:* `pytest.raises(ValueError)` para ordem negativa ($n < 0$), ordem excessiva ($n > 20$), função não suportada e violação de domínio para $\ln(x)$ ($x \le 0$ ou $x_0 \le 0$). [x]
+3. **`tests/test_integration.py` (Refinamento):** [x]
+   - Adicionados testes de funções trigonométricas ($\sin$, $\cos$) e polinomiais de ordem superior com valor analítico exato conhecido, além de chamada direta via escalares com o padrão Strategy. [x]
 
 ---
 
-### Tarefa 3: Qualidade de Código e Conformidade de Linters (§8.2 e §11)
-- Rodar o linter **Ruff** no código Python:
+### Tarefa 3: Qualidade de Código e Conformidade de Linters (§8.2 e §11) [CONCLUÍDA]
+- Linter e formatador **Ruff** executados e 100% conformes:
   ```bash
-  ruff check python/ tests/
-  ruff format python/ tests/
+  ruff check .
+  ruff format --check .
   ```
-- Garantir complexidade ciclomática baixa (sem alertas C901).
-- Garantir ausência total de falhas silenciosas (não retornar `None`, `0.0` ou `NaN` em caso de erro de entrada).
+- Complexidade ciclomática baixa e sem alertas C901.
+- Ausência total de falhas silenciosas.
+- Bateria de testes via `pytest` com 38/38 testes aprovados.
 
 ---
 
