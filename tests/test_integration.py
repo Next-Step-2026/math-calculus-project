@@ -96,3 +96,14 @@ def test_integration_strategy_with_scalar_limits():
 
     with pytest.raises(TypeError):
         mathlab.integrate(lambda x: x, 0.0, 2.0)  # n ausente sem ser interval
+
+
+def test_integration_contracts_postconditions():
+    """Verify that Boost.Contract postconditions detect non-finite results."""
+    from mathlab import _mathcore
+
+    with pytest.raises(RuntimeError, match="std::isfinite"):
+        _mathcore.integrate_trapezoidal(lambda x: float("inf"), 0.0, 1.0, 10)
+
+    with pytest.raises(RuntimeError, match="std::isfinite"):
+        _mathcore.integrate_simpson(lambda x: float("nan"), 0.0, 1.0, 10)

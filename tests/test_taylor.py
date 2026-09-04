@@ -112,3 +112,38 @@ def test_evaluate_polynomial_with_center():
     # P(x) = 1 + 2(x - 1) + 3(x - 1)^2 em x=3 -> 1 + 2(2) + 3(4) = 17
     result = mathlab.evaluate_polynomial([1.0, 2.0, 3.0], 3.0, center=1.0)
     assert result == pytest.approx(17.0)
+
+
+def test_taylor_contracts_preconditions():
+    """Verify that Boost.Contract preconditions reject non-finite and invalid inputs."""
+    from mathlab import _mathcore
+
+    with pytest.raises(ValueError, match="std::isfinite"):
+        _mathcore.approximate_taylor("exp", float("nan"), 0.0, 5)
+
+    with pytest.raises(ValueError, match="std::isfinite"):
+        _mathcore.approximate_taylor("exp", 1.0, float("nan"), 5)
+
+    with pytest.raises(ValueError, match="std::isfinite"):
+        _mathcore.evaluate_polynomial([1.0, float("nan")], 2.0, 0.0)
+
+    with pytest.raises(ValueError, match="std::isfinite"):
+        _mathcore.evaluate_polynomial([1.0, 2.0], float("nan"), 0.0)
+
+    with pytest.raises(ValueError, match="std::isfinite"):
+        _mathcore.evaluate_polynomial([1.0, 2.0], 2.0, float("nan"))
+
+    with pytest.raises(ValueError, match="Function::Ln"):
+        _mathcore.approximate_taylor("ln", -1.0, 1.0, 5)
+
+    with pytest.raises(ValueError, match="Function::Ln"):
+        _mathcore.approximate_taylor("ln", 1.0, -1.0, 5)
+
+
+def test_taylor_contracts_postconditions():
+    """Verify that Boost.Contract postconditions detect non-finite results."""
+    from mathlab import _mathcore
+
+    with pytest.raises(RuntimeError, match="std::isfinite"):
+        _mathcore.evaluate_polynomial([1e300, 1e300], 1e300, 0.0)
+

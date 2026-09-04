@@ -88,3 +88,14 @@ def test_p_series_invalid_params():
 
     with pytest.raises(ValueError, match="n_max must be at least 1"):
         mathlab.compute_p_series(p=2.0, n_max=0)
+
+
+def test_series_contracts_preconditions():
+    """Verify that Boost.Contract preconditions reject non-finite inputs."""
+    from mathlab import _mathcore
+
+    with pytest.raises(ValueError, match="std::isfinite"):
+        _mathcore.compute_series(float("nan"), 0.5, 1e-7, 100)
+
+    with pytest.raises(ValueError, match="std::isfinite"):
+        _mathcore.compute_p_series(float("nan"), 1e-7, 100)

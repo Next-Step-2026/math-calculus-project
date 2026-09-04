@@ -1,3 +1,7 @@
 #pragma once
 
-float somar(float primeiro, float segundo);
+float soma(float primeiro, float segundo);
+
+inline float somar(float primeiro, float segundo) {
+    return soma(primeiro, segundo);
+}

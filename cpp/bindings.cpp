@@ -1,6 +1,7 @@
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <boost/contract.hpp>
 
 #include "include/integration.hpp"
 #include "include/series.hpp"
@@ -159,8 +160,25 @@ void bind_taylor(py::module_& m) {
 } // namespace
 
 PYBIND11_MODULE(_mathcore, m) {
+    boost::contract::set_precondition_failure([](boost::contract::from) {
+        try {
+            throw;
+        } catch (const boost::contract::assertion_failure& e) {
+            throw std::invalid_argument(e.what());
+        }
+    });
+
+    boost::contract::set_postcondition_failure([](boost::contract::from) {
+        try {
+            throw;
+        } catch (const boost::contract::assertion_failure& e) {
+            throw std::runtime_error(e.what());
+        }
+    });
+
     m.doc() = "Modulo nativo C++ de calculo numerico (mathlab)";
     bind_series(m);
     bind_integration(m);
     bind_taylor(m);
 }
+
